@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ご両親へ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Serif JP', serif;
+            background: #fff8f2;
+            overflow: hidden;
+            touch-action: none; /* Disable default touch actions */
+        }
+        .confetti-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #ffb6c1;
+            border-radius: 50%;
+            opacity: 0;
+            animation: confetti-fall linear infinite;
+        }
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100vh) rotateZ(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotateZ(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* 発表前のコンテナに「脈打つ」アニメーションを追加 */
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.02);
+            }
+        }
+        .pulsing {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* クラッカーの中心の光 */
+        .cracker-flash {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background-color: #ffffff;
+            transform: translate(-50%, -50%) scale(0);
+            animation: flash 0.2s ease-in forwards;
+        }
+        @keyframes flash {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(3);
+                opacity: 0;
+            }
+        }
+
+        /* クラッカーの「ぱしゅん」アニメーションの要素 */
+        .cracker-spark {
+            position: absolute;
+            width: 12px; /* 光の粒のサイズを大きく調整 */
+            height: 12px;
+            background-color: #ffb6c1; 
+            border-radius: 50%;
+            opacity: 0;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            /* CSS変数を使ってアニメーションの動きを制御 */
+            animation: pop-spark 0.5s ease-out forwards; /* アニメーション時間は0.5秒を維持し、勢いを保つ */
+        }
+
+        /* クラッカーのアニメーション */
+        @keyframes pop-spark {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(0);
+            }
+            100% {
+                opacity: 0;
+                /* JavaScriptで設定されるCSS変数（--x, --y）を使って移動 */
+                transform: translate(var(--x), var(--y)) scale(1.5);
+            }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="confetti-container" id="confetti-container"></div>
+    
+    <div class="relative w-full max-w-xl p-8 bg-white rounded-3xl shadow-xl">
+        <!-- クラッカーアニメーション用のコンテナ -->
+        <div id="pop-effect-container" class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none hidden"></div>
+
+        <!-- 発表前のコンテンツ -->
+        <div id="initial-content" class="flex flex-col items-center justify-center w-full space-y-8 transition-all duration-500 ease-in-out transform opacity-100">
+            <h1 class="text-3xl md:text-5xl font-bold text-center text-gray-800">名前が、<br class="md:hidden">決まりました</h1>
+            <button id="announce-button" class="px-8 py-4 text-xl md:text-2xl font-bold text-white bg-pink-400 rounded-full shadow-lg hover:bg-pink-500 transform transition-transform duration-200 hover:scale-105 active:scale-95">
+                発表する
+            </button>
+        </div>
+
+        <!-- 発表後のコンテンツ -->
+        <div id="result-content" class="absolute inset-0 flex flex-col items-center justify-center w-full p-8 space-y-4 text-center opacity-0 transition-opacity duration-500 ease-in-out pointer-events-none">
+            <p class="text-4xl md:text-6xl font-bold text-gray-800" id="name-kanji"></p>
+            <p class="text-2xl md:text-4xl text-gray-600" id="name-yomigana"></p>
+            <p class="mt-8 text-xl md:text-2xl text-gray-700">よろしくお願いします👶</p>
+        </div>
+    </div>
+
+    <script>
+        // 設定内容: 赤ちゃんの名前をここに設定してください
+        // 漢字
+        const babyNameKanji = "結葵"; 
+        // よみがな
+        const babyNameYomigana = "ゆあ";
+
+        // DOMエレメントの取得
+        const announceButton = document.getElementById('announce-button');
+        const initialContent = document.getElementById('initial-content');
+        const resultContent = document.getElementById('result-content');
+        const nameKanjiElement = document.getElementById('name-kanji');
+        const nameYomiganaElement = document.getElementById('name-yomigana');
+        const confettiContainer = document.getElementById('confetti-container');
+        const popEffectContainer = document.getElementById('pop-effect-container');
+
+        // ボタンクリック時のイベントリスナー
+        announceButton.addEventListener('click', () => {
+            // ボタンを無効化
+            announceButton.disabled = true;
+            
+            // 発表前のコンテナに脈打つアニメーションを適用
+            initialContent.classList.add('pulsing');
+            
+            // 発表までの「ため」時間 (2秒)
+            const revealDelay = 2000;
+
+            setTimeout(() => {
+                // クラッカーのアニメーションを実行
+                createCrackerPop();
+                
+                // 少し遅れて名前と紙吹雪の表示
+                setTimeout(() => {
+                    // ため時間が終わったら、初期コンテナを非表示にする
+                    initialContent.style.transform = 'scale(0.8)';
+                    initialContent.style.opacity = '0';
+                    
+                    // 結果コンテナを有効にし、フェードインを開始
+                    resultContent.classList.remove('pointer-events-none');
+                    setTimeout(() => {
+                        resultContent.style.opacity = '1';
+                        // 名前を表示
+                        nameKanjiElement.textContent = babyNameKanji;
+                        nameYomiganaElement.textContent = babyNameYomigana;
+                    }, 500); // フェードインの時間に合わせて待機
+
+                    // 紙吹雪アニメーションの開始
+                    startConfetti();
+                }, 300); // クラッカーアニメーションの後に少し間を置く
+            }, revealDelay);
+        });
+
+        // クラッカーの「ぱしゅん」アニメーションを生成する関数
+        function createCrackerPop() {
+            popEffectContainer.classList.remove('hidden');
+            
+            // 中心が一瞬光る演出
+            const flash = document.createElement('div');
+            flash.classList.add('cracker-flash');
+            popEffectContainer.appendChild(flash);
+            flash.addEventListener('animationend', () => flash.remove());
+
+            // 飛び散る光の粒
+            for (let i = 0; i < 200; i++) { // 光の粒の数を200個に増加
+                const spark = document.createElement('div');
+                spark.classList.add('cracker-spark');
+                
+                // ランダムな方向と距離を計算
+                const angle = Math.random() * 2 * Math.PI;
+                const distance = Math.random() * 300 + 100; // 100pxから400pxの範囲でより広範囲に飛び散る
+                const xOffset = Math.cos(angle) * distance;
+                const yOffset = Math.sin(angle) * distance;
+                
+                // CSS変数としてアニメーションに渡す
+                spark.style.setProperty('--x', `${xOffset}px`);
+                spark.style.setProperty('--y', `${yOffset}px`);
+                
+                // 光の粒の色をランダムに設定
+                spark.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 75%)`;
+                
+                spark.style.animationDelay = `${Math.random() * 0.1}s`;
+                popEffectContainer.appendChild(spark);
+                
+                // アニメーションが完了したら要素を削除
+                spark.addEventListener('animationend', () => {
+                    spark.remove();
+                });
+            }
+            // コンテナを非表示に戻す
+            setTimeout(() => {
+                popEffectContainer.classList.add('hidden');
+            }, 800); // アニメーション時間に合わせて800msに変更
+        }
+
+        // 紙吹雪を生成してアニメーションを開始する関数
+        function startConfetti() {
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
+                confetti.style.animationDelay = `${Math.random() * 2}s`;
+                confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 75%)`;
+                confettiContainer.appendChild(confetti);
+            }
+        }
+    </script>
+</body>
+</html>
